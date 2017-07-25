@@ -13,11 +13,15 @@ use Symfony\Component\Serializer\SerializerInterface;
 class DefaultController extends Controller
 {
     /**
-     * @Route("/", name="homepage")
+     * @Route("/{json}", name="homepage")
      */
-    public function indexAction(Request $request)
+    public function indexAction($json = null, Request $request, SerializerInterface $serializer)
     {
         //dump($this->get('kernel')->getEnvironment());
+        //dump($serializer->deserialize($request->request->get("json"), null, 'json'));
+        //dump($json);
+        //$data_param = $request->getContent();
+       // dump($data_param);
 
         // replace this example code with whatever you need
         return $this->render('default/index.html.twig', [
@@ -26,11 +30,16 @@ class DefaultController extends Controller
     }
 
     /**
-     * @Route("/articles/get/{id}", name="article_show")
+     * @Route("/articles/{id}", name="article_show", requirements = {"id"="\d+"})
      */
     public function showAction(Article $article, SerializerInterface $serializer)
     {
-        $data = $serializer->serialize($article,'json');
+        $normalizers = new \Symfony\Component\Serializer\Normalizer\GetSetMethodNormalizer();
+        $json_array = $normalizers->normalize($article);
+
+        $json_array['_link'] = $article->discover();
+
+        $data = $serializer->serialize($json_array,'json');
 
         $response = new Response($data);
         $response->headers->set('Content-Type', 'application/json');
@@ -39,76 +48,66 @@ class DefaultController extends Controller
     }
 
     /**
-     * @Route("/articles", name="article_create")
+     * @Route("/articles/{json}", name="article_create", requirements = {"id"="\d+"})
      * @Method({"POST"})
-     */
-    public function createAction(Request $request, SerializerInterface $serializer)
+*/
+    public function createAction($json = null, Request $request, SerializerInterface $serializer)
     {
         $data_param = $request->getContent();
         $article = null;
 
-        if (!empty($data_param))
-        {
-            try {
-                $article = $serializer->deserialize($data_param, Article::class, 'json');
-            } catch (\Exception $e)
-            {
-                return new Response('', Response::HTTP_BAD_REQUEST);
-            }
-        }
-        else if(!empty($request->request->get("content")))
+        if(!empty($request->request->get("content")))
         {
             $article = new Article();
             $article->setContent($request->request->get("content"));
             $article->setTitle("title");
         }
-        else if(!empty($request->request->get("json")))
-        {
-            try {
-                $article = $serializer->deserialize($request->request->get("json"), Article::class, 'json');
-            } catch (\Exception $e)
-            {
-                return new Response('', Response::HTTP_BAD_REQUEST);
-            }
+        else if (!empty($data_param))
+            $article = $serializer->deserialize($data_param, Article::class, 'json');
+        else if($json != null)
+            $article = $serializer->deserialize($json, Article::class, 'json');
+        else
+            return new Response('', Response::HTTP_BAD_REQUEST);
+
+        $errors = $this->get('validator')->validate($article);
+
+        if(count($errors)) {
+            //dump($errors);
+            $data = $serializer->serialize($errors,'json');
+            return new Response($data, Response::HTTP_BAD_REQUEST);
         }
         else
         {
-            return new Response('', Response::HTTP_BAD_REQUEST);
-        }
-
-        if($article->isValid()) {
             $em = $this->getDoctrine()->getManager();
             $em->persist($article);
             $em->flush();
+            return new Response('', Response::HTTP_CREATED);
         }
-        else
-        {
-            return new Response('', Response::HTTP_BAD_REQUEST);
-        }
-
-        return new Response('', Response::HTTP_CREATED);
     }
 
     /**
-     * @Route("/articles/update/{id}", name="article_modify")
+     * @Route("/articles/{id}/{json}", name="article_modify", requirements = {"id"="\d+"})
      * @Method({"PUT"})
      */
-    public function modifyAction(Article $article, Request $request)
+    public function modifyAction($json = null, Article $article, Request $request, SerializerInterface $serializer)
     {
         $data = $request->getContent();
 
-        if (!empty($data))
-            $article = $this->get('jms_serializer')->deserialize($data, 'AppBundle\Entity\Article', 'json');
-        else
+        if(!empty($request->request->get("content")) || !empty($request->request->get("title")))
         {
             if(!empty($request->request->get("content")))
                 $article->setContent($request->request->get("content"));
             if(!empty($request->request->get("title")))
                 $article->setTitle("title");
         }
+        else if (!empty($data_param))
+            $article->diff_json($serializer->deserialize($data_param, Article::class, 'json'));
+        else if($json != null)
+            $article->diff_json($serializer->deserialize($json, Article::class, 'json'));
+        else
+            return new Response('', Response::HTTP_BAD_REQUEST);
 
         $em = $this->getDoctrine()->getManager();
-        $em->persist($article);
         $em->flush();
 
         return new Response('', Response::HTTP_CREATED);
