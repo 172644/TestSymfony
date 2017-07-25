@@ -37,6 +37,31 @@ class Article
      */
     private $content;
 
+
+    private $_link;
+
+    /**
+     * @return mixed
+     */
+    public function getLink()
+    {
+        return $this->_link;
+    }
+
+    /**
+     * @param mixed $link
+     */
+    public function setLink($link)
+    {
+        $this->_link = $link;
+    }
+
+    public function __construct()
+    {
+        $this->_link = $this->discover();
+    }
+
+
     public function getId()
     {
         return $this->id;
@@ -66,11 +91,11 @@ class Article
         return $this;
     }
 
-    public function discover($_url, $links, $_route)
+    public function discover($_url, $_links, $_route)
     {
         $id_array = array('id' => $this->getId());
 
-        foreach($links as $action => $route)
+        foreach($_links as $action => $route)
         {
             $_method = $_route->getRouteCollection()->get($route)->getMethods();
             $autoDiscover[$action] = array("url" => $_url, 'uri' => $_route->generate($route, $id_array), "method" => $_method[0]);

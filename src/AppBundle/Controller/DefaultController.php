@@ -22,7 +22,7 @@ class DefaultController extends Controller
                                             );
 
     /**
-     * @Route("/{json}", name="homepage")
+     * @Route("/", name="homepage")
      */
     public function indexAction($json = null, Request $request, SerializerInterface $serializer)
     {
@@ -45,14 +45,9 @@ class DefaultController extends Controller
      */
     public function showAction(Article $article, Request $request, SerializerInterface $serializer)
     {
-        $normalizers = new \Symfony\Component\Serializer\Normalizer\GetSetMethodNormalizer();
-        $json_array = $normalizers->normalize($article);
+        $article->setLink($article->discover($request->getHttpHost(), $this->_links_discover_article, $this->get('router')));
 
-
-        $json_array['_link'] = $article->discover($request->getHttpHost(), $this->_links_discover_article, $this->get('router'));
-        $data = $serializer->serialize($json_array,'json');
-
-        $response = new Response($data);
+        $response = new Response($serializer->serialize($article,'json'));
         $response->headers->set('Content-Type', 'application/json');
 
         return $response;
@@ -113,7 +108,13 @@ class DefaultController extends Controller
             $em = $this->getDoctrine()->getManager();
             $em->persist($article);
             $em->flush();
-            return new Response('', Response::HTTP_CREATED);
+
+            $article->setLink($article->discover($request->getHttpHost(), $this->_links_discover_article, $this->get('router')));
+
+            $response = new Response($serializer->serialize($article,'json'), Response::HTTP_CREATED);
+            $response->headers->set('Content-Type', 'application/json');
+
+            return $response;
         }
     }
 
@@ -150,19 +151,27 @@ class DefaultController extends Controller
         $em = $this->getDoctrine()->getManager();
         $em->flush();
 
-        return new Response('', Response::HTTP_CREATED);
+        $article->setLink($article->discover($request->getHttpHost(), $this->_links_discover_article, $this->get('router')));
+
+        $response = new Response($serializer->serialize($article,'json'), Response::HTTP_CREATED);
+        $response->headers->set('Content-Type', 'application/json');
+
+        return $response;
     }
 
     /**
      * @Route("/articles", name="article_list")
      * @Method({"GET"})
      */
-    public function listAction(SerializerInterface $serializer)
+    public function listAction(SerializerInterface $serializer, Request $request)
     {
         $articles = $this->getDoctrine()->getRepository('AppBundle:Article')->findAll();
-        $data = $serializer->serialize($articles,'json');
 
-        $response = new Response($data);
+        foreach ($articles as $_article) {
+            $_article->setLink($_article->discover($request->getHttpHost(), $this->_links_discover_article, $this->get('router')));
+        }
+
+        $response = new Response($serializer->serialize($articles, 'json'));
         $response->headers->set('Content-Type', 'application/json');
 
         return $response;
