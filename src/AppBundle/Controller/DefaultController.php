@@ -4,10 +4,12 @@ namespace AppBundle\Controller;
 
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Component\Config\Definition\Exception\Exception;
 use Symfony\Component\HttpFoundation\Request;
 use AppBundle\Entity\Article;
 use Symfony\Component\HttpFoundation\Response;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
+use Symfony\Component\OptionsResolver\Exception\AccessException;
 use Symfony\Component\Serializer\SerializerInterface;
 
 class DefaultController extends Controller
@@ -84,10 +86,18 @@ class DefaultController extends Controller
             $article->setContent($request->request->get("content"));
             $article->setTitle("title");
         }
-        else if (!empty($data_param))
-            $article = $serializer->deserialize($data_param, Article::class, 'json');
-        else if($json != null)
-            $article = $serializer->deserialize($json, Article::class, 'json');
+        else if (!empty($data_param)){
+            if(json_decode($data_param) != null)
+                $article = $serializer->deserialize($data_param, Article::class, 'json');
+            else
+                return new Response($serializer->serialize(array('error'=>'Bad Json'),'json'), Response::HTTP_BAD_REQUEST);
+        }
+        else if($json != null){
+            if(json_decode($json) != null)
+                $article = $serializer->deserialize($json, Article::class, 'json');
+            else
+                return new Response($serializer->serialize(array('error'=>'Bad Json'),'json'), Response::HTTP_BAD_REQUEST);
+        }
         else
             return new Response('', Response::HTTP_BAD_REQUEST);
 
@@ -122,10 +132,18 @@ class DefaultController extends Controller
             if(!empty($request->request->get("title")))
                 $article->setTitle("title");
         }
-        else if (!empty($data_param))
-            $article->diff_json($serializer->deserialize($data_param, Article::class, 'json'));
-        else if($json != null)
-            $article->diff_json($serializer->deserialize($json, Article::class, 'json'));
+        else if (!empty($data_param)) {
+            if(json_decode($data_param) != null)
+                $article->diff_json($serializer->deserialize($data_param, Article::class, 'json'));
+            else
+                return new Response($serializer->serialize(array('error'=>'Bad Json'),'json'), Response::HTTP_BAD_REQUEST);
+        }
+        else if($json != null) {
+            if(json_decode($json) != null)
+                $article->diff_json($serializer->deserialize($json, Article::class, 'json'));
+            else
+                return new Response($serializer->serialize(array('error'=>'Bad Json'),'json'), Response::HTTP_BAD_REQUEST);
+        }
         else
             return new Response('', Response::HTTP_BAD_REQUEST);
 
