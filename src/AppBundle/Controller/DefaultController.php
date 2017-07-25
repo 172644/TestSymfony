@@ -12,6 +12,13 @@ use Symfony\Component\Serializer\SerializerInterface;
 
 class DefaultController extends Controller
 {
+    private $_links_discover_article = array(
+                                                'GET' => 'article_show',
+                                                'MODIFY' => 'article_modify',
+                                                'DELETE' => 'article_delete',
+                                                'CREATE' => 'article_create'
+                                            );
+
     /**
      * @Route("/{json}", name="homepage")
      */
@@ -27,24 +34,39 @@ class DefaultController extends Controller
         return $this->render('default/index.html.twig', [
             'base_dir' => realpath($this->getParameter('kernel.project_dir')).DIRECTORY_SEPARATOR,
         ]);
+
     }
 
     /**
      * @Route("/articles/{id}", name="article_show", requirements = {"id"="\d+"})
+     * @Method({"GET"})
      */
-    public function showAction(Article $article, SerializerInterface $serializer)
+    public function showAction(Article $article, Request $request, SerializerInterface $serializer)
     {
         $normalizers = new \Symfony\Component\Serializer\Normalizer\GetSetMethodNormalizer();
         $json_array = $normalizers->normalize($article);
 
-        $json_array['_link'] = $article->discover();
 
+        $json_array['_link'] = $article->discover($request->getHttpHost(), $this->_links_discover_article, $this->get('router'));
         $data = $serializer->serialize($json_array,'json');
 
         $response = new Response($data);
         $response->headers->set('Content-Type', 'application/json');
 
         return $response;
+    }
+
+    /**
+     * @Route("/articles/{id}", name="article_delete", requirements = {"id"="\d+"})
+     * @Method({"DELETE"})
+     */
+    public function deleteAction(Article $article, SerializerInterface $serializer)
+    {
+        $em = $this->getDoctrine()->getManager();
+        $em->remove($article);
+        $em->flush();
+
+        return new Response('', Response::HTTP_OK);
     }
 
     /**

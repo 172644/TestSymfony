@@ -66,12 +66,15 @@ class Article
         return $this;
     }
 
-    public function discover()
+    public function discover($_url, $links, $_route)
     {
-        $autoDiscover['GET'] = array("url" => "http://127.0.0.1/TestSymfony/web/app_dev.php", 'uri' => '/articles/'.$this->getId(), "method" => "GET");
-        $autoDiscover['ADD'] = array("url" => "http://127.0.0.1/TestSymfony/web/app_dev.php", 'uri' => '/articles/'.$this->getId(), "method" => "POST");
-        $autoDiscover['DELETE'] = array("url" => "http://127.0.0.1/TestSymfony/web/app_dev.php", 'uri' => '/articles/'.$this->getId(), "method" => "DELETE");
-        $autoDiscover['MODIFY'] = array("url" => "http://127.0.0.1/TestSymfony/web/app_dev.php", 'uri' => '/articles/'.$this->getId(), "method" => "PUT");
+        $id_array = array('id' => $this->getId());
+
+        foreach($links as $action => $route)
+        {
+            $_method = $_route->getRouteCollection()->get($route)->getMethods();
+            $autoDiscover[$action] = array("url" => $_url, 'uri' => $_route->generate($route, $id_array), "method" => $_method[0]);
+        }
         return $autoDiscover;
     }
 
